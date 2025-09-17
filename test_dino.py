@@ -1,6 +1,5 @@
 from playwright.sync_api import sync_playwright
 import time
-import statistics
 
 def run_dino_ai_stable():
     with sync_playwright() as p:
@@ -15,26 +14,26 @@ def run_dino_ai_stable():
         start_time = time.time()
         game_duration = 60
         last_jump = 0
-        base_distance = 90
-        speed_factor = 4
+        base_distance = 80
+        speed_factor = 0.9
         merge_gap = 10
+        extreme_gap_threshold = 10  # 距離小於 10 就視為極端事件
 
-        # === 極端事件判斷參數 ===
-        extreme_gap_threshold = 10   # 基本距離閾值
-        extreme_std_factor = 1.0     # 超過 N 倍標準差才算極端
-        obstacle_distances = []      # 紀錄障礙物距離
-
+        # ✅ 極端事件計數器
         extreme_event_count = 0
+        # ✅ 冷卻時間 (避免重複計數同一障礙物)
         last_extreme_time = 0
         extreme_cooldown = 0.5  # 單位：秒
 
         while time.time() - start_time < game_duration:
             try:
+                # 抓取 Dino 與障礙物狀態
                 result = page.evaluate("""
                     (() => {
                         const tRex = Runner.instance_.tRex;
                         const obstacles = Runner.instance_.horizon.obstacles || [];
                         const speed = Runner.instance_.currentSpeed;
+                        const crashed = Runner.instance_.crashed;
                         return {
                             obstacles: obstacles.map(o => ({
                                 x: o.xPos || 0,
@@ -43,7 +42,8 @@ def run_dino_ai_stable():
                                 h: o.height || 0
                             })),
                             tRexX: tRex.xPos,
-                            speed: speed
+                            speed: speed,
+                            crashed: crashed
                         };
                     })()
                 """)
@@ -51,6 +51,14 @@ def run_dino_ai_stable():
                 obstacles = result['obstacles']
                 tRexX = result['tRexX']
                 speed = result['speed']
+                crashed = result['crashed']
+
+                # ✅ 若 Dino 撞到障礙物，自動重啟遊戲
+                if crashed:
+                    print("\n💥 Dino 撞到障礙物，重新開始...")
+                    page.keyboard.press("Space")  # 重啟遊戲
+                    time.sleep(0.5)
+                    continue
 
                 jump_threshold = base_distance + speed * speed_factor
                 jump_trigger = False
@@ -68,12 +76,12 @@ def run_dino_ai_stable():
                         else:
                             merged_obstacles.append(obs)
 
-                # 找最近障礙物
+                # 找最近障礙物（✅ 修正：只考慮前方）
                 closest_obs = None
                 closest_dist = None
                 for obs in merged_obstacles:
                     distance = obs['x'] - tRexX
-                    if distance > 0:  # ✅ 只考慮恐龍前方
+                    if distance > 0:  # ✅ 只考慮恐龍前方的障礙物
                         if closest_dist is None or distance < closest_dist:
                             closest_dist = distance
                             closest_obs = obs
@@ -85,21 +93,12 @@ def run_dino_ai_stable():
                     page.keyboard.press("Space")
                     last_jump = time.time()
 
-                    # ✅ 儲存距離並進行極端事件判斷
-                    if closest_dist is not None:
-                        obstacle_distances.append(abs(closest_dist))
-
-                        if len(obstacle_distances) >= 5:  # 至少需要5筆資料才能判斷
-                            avg_distance = statistics.mean(obstacle_distances)
-                            std_distance = statistics.pstdev(obstacle_distances)
-                            deviation = abs(closest_dist - avg_distance)
-
-                            if (abs(closest_dist) < extreme_gap_threshold and
-                                deviation > extreme_std_factor * std_distance and
-                                time.time() - last_extreme_time > extreme_cooldown):
-                                extreme_event_count += 1
-                                last_extreme_time = time.time()
-                                print(f"\n⚠️ 極端事件觸發！距離: {closest_dist:.2f}, 平均: {avg_distance:.2f}, 標準差: {std_distance:.2f}")
+                    # ✅ 僅在 Dino 起跳時判定是否為極端事件
+                    if (closest_dist is not None and closest_dist < extreme_gap_threshold and
+                        time.time() - last_extreme_time > extreme_cooldown):
+                        extreme_event_count += 1
+                        last_extreme_time = time.time()
+                        print(f"\n⚠️ 極端事件觸發！距離: {closest_dist:.2f}")
 
                 # 畫紅框標記最近障礙物
                 if closest_obs:
