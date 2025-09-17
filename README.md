@@ -12,4 +12,9 @@
 - 碰撞障礙物時劃紅線標註碰撞區
 ---
 
-## 專案結構
+## 專案安裝方式
+
+建議使用 Python 3.10+  
+安裝必要套件：
+```bash
+pip install -r requirements.txt
