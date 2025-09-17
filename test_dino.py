@@ -100,21 +100,7 @@ def run_dino_ai_stable():
                         last_extreme_time = time.time()
                         print(f"\n⚠️ 極端事件觸發！距離: {closest_dist:.2f}")
 
-                # 畫紅框標記最近障礙物
-                if closest_obs:
-                    obs_w = max(closest_obs['w'], 1)
-                    obs_h = max(closest_obs['h'], 1)
-                    page.evaluate(f"""
-                        (() => {{
-                            const canvas = document.querySelector('canvas');
-                            const ctx = canvas.getContext('2d');
-                            ctx.strokeStyle = 'red';
-                            ctx.lineWidth = 2;
-                            ctx.beginPath();
-                            ctx.rect({closest_obs['x']}, {closest_obs['y']}, {obs_w}, {obs_h});
-                            ctx.stroke();
-                        }})()
-                    """)
+
 
                 # 終端顯示
                 print(f"Speed: {speed:.2f}, Jump threshold: {jump_threshold:.2f}, "
