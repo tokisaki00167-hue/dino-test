@@ -4,7 +4,7 @@ import time
 def run_dino_ai_stable():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=False, slow_mo=50)
-        page = browser.new_page()
+        page = browser.new_page() 
         page.goto("https://chromedino.com/")
 
         print("已開啟 Dino 遊戲，3 秒後自動開始...")
@@ -14,10 +14,10 @@ def run_dino_ai_stable():
         start_time = time.time()
         game_duration = 60
         last_jump = 0
-        base_distance = 80
-        speed_factor = 0.9
+        base_distance = 90
+        speed_factor = 4
         merge_gap = 10
-        extreme_gap_threshold = 10  # 距離小於 10 就視為極端事件
+        extreme_gap_threshold = 5  # 距離小於 5 就視為極端事件
 
         # ✅ 極端事件計數器
         extreme_event_count = 0
